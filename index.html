@@ -393,6 +393,14 @@
         </div>
         <div class="form-group"><label>Description</label><textarea id="tokenDesc" placeholder="What's your token about?" required></textarea></div>
         <div class="form-group">
+          <label>Social Links <span style="color:var(--text-sub2);font-weight:400;text-transform:none">(optional)</span></label>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px">🐦</span><input type="text" id="tokenTwitter" placeholder="x.com/yourtoken" style="padding-left:36px"></div>
+            <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px">💬</span><input type="text" id="tokenTelegram" placeholder="t.me/yourgroup" style="padding-left:36px"></div>
+            <div style="position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px">🌐</span><input type="text" id="tokenWebsite" placeholder="yourtoken.com" style="padding-left:36px"></div>
+          </div>
+        </div>
+        <div class="form-group">
           <label>Token Image</label>
           <div class="upload-zone" id="uploadArea">
             <input type="file" accept="image/*" id="tokenImage" onchange="handleUpload(event)">
@@ -713,12 +721,22 @@ async function handleLaunch(e){
   const name=document.getElementById('tokenName').value.trim();
   const sym=document.getElementById('tokenTicker').value.trim().toUpperCase();
   const desc=document.getElementById('tokenDesc').value.trim();
+  const twitter=document.getElementById('tokenTwitter').value.trim();
+  const telegram=document.getElementById('tokenTelegram').value.trim();
+  const website=document.getElementById('tokenWebsite').value.trim();
   if(!name||!sym||!desc){showModal('Fill in all fields.');return}
+  // Pack socials into description as JSON metadata
+  let fullDesc=desc;
+  const socials={};
+  if(twitter)socials.twitter=twitter.replace(/^@/,'').replace(/^https?:\/\/(x|twitter)\.com\//i,'');
+  if(telegram)socials.telegram=telegram.replace(/^@/,'').replace(/^https?:\/\/t\.me\//i,'');
+  if(website)socials.website=website.replace(/^https?:\/\//i,'');
+  if(Object.keys(socials).length)fullDesc=desc+'\n---socials:'+JSON.stringify(socials);
   const btn=document.querySelector('.btn-launch');
   btn.disabled=true;btn.textContent='⏳ Creating...';
   try{
     const fee=await rpcRetry(()=>factory.launchFee());
-    const tx=await factory.createToken(name,sym,'',desc,{value:fee});
+    const tx=await factory.createToken(name,sym,'',fullDesc,{value:fee});
     btn.textContent='⏳ Confirming...';
     const rc=await tx.wait();
     const log=rc.logs.find(l=>{try{return factory.interface.parseLog(l)?.name==='TokenCreated'}catch{return false}});
@@ -754,7 +772,7 @@ async function loadTokens(force=false){
       await sleep(RPC_DELAY);
       const price=await rpcRetry(()=>rf.getPrice(i));
       const[addr,name,sym,,desc,creator,raised,supply,grad]=t;
-      tokens.push({id:i,addr,name,sym,desc,creator,raised:ethers.formatEther(raised),price:ethers.formatEther(price),grad});
+      tokens.push({id:i,addr,name,sym,rawDesc:desc,creator,raised:ethers.formatEther(raised),price:ethers.formatEther(price),grad});
     }
     tokenCache={data:{count:Number(count),tokens},time:Date.now()};
     renderTokens(tokenCache.data);
@@ -770,16 +788,32 @@ function renderTokens(data){
   h.querySelector('a').textContent='View all →';
   data.tokens.forEach(tk=>{
     const card=document.createElement('div');card.className='trending-card';
-    card.onclick=()=>openTrade(tk.id,tk.name,tk.sym,tk.addr,tk.raised,tk.price,tk.grad);
+    card.onclick=()=>openTrade(tk.id,tk.name,tk.sym,tk.addr,tk.raised,tk.price,tk.grad,tk.rawDesc);
     card.innerHTML='<div class="trending-avatar">'+(tk.grad?'🎓':tk.name.charAt(0).toUpperCase())+'</div><div class="trending-info"><div class="trending-name"><strong>'+tk.name+'</strong><span>$'+tk.sym+'</span></div><div class="trending-stats"><span class="mcap">'+parseFloat(tk.raised).toFixed(4)+' ETH</span><span class="change up">'+(tk.grad?'Graduated':'Active')+'</span></div></div>';
     c.appendChild(card);
   });
 }
 
 // TRADE MODAL
-function openTrade(id,name,sym,addr,raised,price,grad){
+function parseSocials(desc){
+  const marker='---socials:';
+  const idx=desc.indexOf(marker);
+  if(idx===-1)return{desc:desc,socials:{}};
+  try{return{desc:desc.substring(0,idx).trim(),socials:JSON.parse(desc.substring(idx+marker.length))};}
+  catch{return{desc:desc,socials:{}};}
+}
+function openTrade(id,name,sym,addr,raised,price,grad,rawDesc){
   const t=document.getElementById('modalText');
-  t.innerHTML='<div style="text-align:left"><h3 style="margin-bottom:8px">'+name+' ($'+sym+')</h3><p style="font-size:13px;color:var(--text-sub);margin-bottom:12px"><a href="https://robinhoodchain.blockscout.com/address/'+addr+'" target="_blank" style="color:var(--green)">'+addr.slice(0,20)+'...</a></p><div style="display:flex;gap:12px;margin-bottom:16px"><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Raised</div><div style="font-weight:600">'+parseFloat(raised).toFixed(4)+' ETH</div></div><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Price</div><div style="font-weight:600">'+parseFloat(price).toFixed(8)+' ETH</div></div></div>'+(grad?'<p style="color:#22c55e;font-weight:600">🎓 Graduated!</p>':'<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Buy with ETH</label><div style="display:flex;gap:8px"><input type="number" id="buyAmt" placeholder="0.01" step="0.001" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doBuy('+id+')" style="padding:10px 20px;background:var(--green);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer">Buy</button></div></div><div><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Sell tokens</label><div style="display:flex;gap:8px"><input type="number" id="sellAmt" placeholder="1000" step="1" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doSell('+id+')" style="padding:10px 20px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:600;cursor:pointer">Sell</button></div></div>')+'</div>';
+  const{desc,socials}=parseSocials(rawDesc||'');
+  let socialHtml='';
+  if(socials.twitter||socials.telegram||socials.website){
+    socialHtml='<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+    if(socials.twitter)socialHtml+='<a href="https://x.com/'+socials.twitter+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;font-size:12px;transition:all 0.2s" onmouseover="this.style.borderColor=\'rgba(196,255,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\'">🐦 @'+socials.twitter+'</a>';
+    if(socials.telegram)socialHtml+='<a href="https://t.me/'+socials.telegram+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;font-size:12px;transition:all 0.2s" onmouseover="this.style.borderColor=\'rgba(196,255,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\'">💬 Telegram</a>';
+    if(socials.website)socialHtml+='<a href="https://'+socials.website+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;font-size:12px;transition:all 0.2s" onmouseover="this.style.borderColor=\'rgba(196,255,0,0.3)\'" onmouseout="this.style.borderColor=\'var(--border)\'">🌐 '+socials.website+'</a>';
+    socialHtml+='</div>';
+  }
+  t.innerHTML='<div style="text-align:left"><h3 style="margin-bottom:4px">'+name+' ($'+sym+')</h3>'+(desc?'<p style="font-size:12px;color:var(--text-sub);margin-bottom:8px">'+desc+'</p>':'')+'<p style="font-size:13px;color:var(--text-sub);margin-bottom:12px"><a href="https://robinhoodchain.blockscout.com/address/'+addr+'" target="_blank" style="color:var(--green)">'+addr.slice(0,20)+'...</a></p>'+socialHtml+'<div style="display:flex;gap:12px;margin-bottom:16px"><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Raised</div><div style="font-weight:600">'+parseFloat(raised).toFixed(4)+' ETH</div></div><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Price</div><div style="font-weight:600">'+parseFloat(price).toFixed(8)+' ETH</div></div></div>'+(grad?'<p style="color:#22c55e;font-weight:600">🎓 Graduated!</p>':'<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Buy with ETH</label><div style="display:flex;gap:8px"><input type="number" id="buyAmt" placeholder="0.01" step="0.001" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doBuy('+id+')" style="padding:10px 20px;background:var(--green);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer">Buy</button></div></div><div><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Sell tokens</label><div style="display:flex;gap:8px"><input type="number" id="sellAmt" placeholder="1000" step="1" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doSell('+id+')" style="padding:10px 20px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:600;cursor:pointer">Sell</button></div></div>')+'</div>';
   document.getElementById('modal').classList.add('active');
 }
 async function doBuy(id){
