@@ -185,6 +185,31 @@
     .wallet-close{display:block;margin:16px auto 0;background:none;border:1px solid var(--border);color:var(--text-sub);padding:8px 24px;border-radius:50px;font-size:13px;font-family:var(--font-b);cursor:pointer;transition:all 0.2s}
     .wallet-close:hover{color:var(--text);border-color:var(--border-hover)}
 
+    /* ===== SETTINGS MODAL ===== */
+    .settings-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);z-index:300;align-items:center;justify-content:center;padding:24px}
+    .settings-overlay.active{display:flex}
+    .settings-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:32px 24px;max-width:380px;width:100%;animation:modalIn 0.2s ease}
+    .settings-modal h2{font-family:var(--font-h);font-size:20px;font-weight:700;text-align:center;margin-bottom:24px}
+    .settings-group{margin-bottom:20px}
+    .settings-group label{display:block;font-size:12px;font-weight:600;color:var(--text-sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+    .settings-group .sg-desc{font-size:11px;color:var(--text-sub2);margin-top:4px}
+    .slippage-btns{display:flex;gap:6px}
+    .slippage-btns button{flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-weight:500;font-family:var(--font-b);cursor:pointer;transition:all 0.2s}
+    .slippage-btns button:hover{border-color:var(--border-hover)}
+    .slippage-btns button.active{background:var(--green-10);border-color:var(--green);color:var(--green);font-weight:600}
+    .slippage-custom{display:flex;align-items:center;gap:6px;margin-top:6px}
+    .slippage-custom input{width:80px;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font-b);outline:none;text-align:center}
+    .slippage-custom input:focus{border-color:rgba(196,255,0,0.35)}
+    .slippage-custom span{color:var(--text-sub);font-size:13px}
+    .settings-info{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;margin-bottom:12px}
+    .settings-info .si-label{font-size:13px;color:var(--text-sub);flex:1}
+    .settings-info .si-val{font-size:13px;font-weight:600;color:var(--text)}
+    .settings-links{display:flex;flex-direction:column;gap:6px}
+    .settings-link{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;color:var(--text);text-decoration:none;font-size:13px;transition:all 0.2s}
+    .settings-link:hover{background:var(--bg-hover);border-color:var(--border-hover)}
+    .settings-link .sl-icon{font-size:16px}
+    .settings-link .sl-arrow{margin-left:auto;color:var(--text-sub2)}
+
     /* ===== FOOTER ===== */
     .footer{border-top:1px solid var(--border);padding:24px 16px}
     .footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
@@ -427,12 +452,51 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Wallet</span>
     </a>
-    <a href="#" class="bnav-item" onclick="showModal('Settings')">
+    <a href="#" class="bnav-item" onclick="openSettings()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
       <span>Settings</span>
     </a>
   </div>
 </nav>
+
+<!-- SETTINGS MODAL -->
+<div class="settings-overlay" id="settingsModal">
+  <div class="settings-modal">
+    <h2>⚙️ Settings</h2>
+    <div class="settings-group">
+      <label>Slippage Tolerance</label>
+      <div class="slippage-btns">
+        <button onclick="setSlippage(0.5,this)">0.5%</button>
+        <button onclick="setSlippage(1,this)" class="active">1%</button>
+        <button onclick="setSlippage(3,this)">3%</button>
+        <button onclick="setSlippage(5,this)">5%</button>
+      </div>
+      <div class="slippage-custom">
+        <span>Custom:</span>
+        <input type="number" id="customSlippage" placeholder="1.0" step="0.1" min="0.1" max="50" onchange="setCustomSlippage(this.value)">
+        <span>%</span>
+      </div>
+      <div class="sg-desc">Max price change allowed during trade execution</div>
+    </div>
+    <div class="settings-group">
+      <label>Network Info</label>
+      <div class="settings-info"><span class="si-label">Chain</span><span class="si-val">Robinhood Chain</span></div>
+      <div class="settings-info"><span class="si-label">Chain ID</span><span class="si-val">4663</span></div>
+      <div class="settings-info"><span class="si-label">Gas Token</span><span class="si-val">ETH</span></div>
+      <div class="settings-info"><span class="si-label">Trade Fee</span><span class="si-val">1%</span></div>
+      <div class="settings-info"><span class="si-label">Launch Fee</span><span class="si-val">0.001 ETH</span></div>
+    </div>
+    <div class="settings-group">
+      <label>Links</label>
+      <div class="settings-links">
+        <a href="https://robinhoodchain.blockscout.com/address/0x0A13180bFcae1A09BFdC8EB844f3F7e97d6E75a9" target="_blank" class="settings-link"><span class="sl-icon">📜</span>Contract on Explorer<span class="sl-arrow">→</span></a>
+        <a href="https://x.com/Rockhood_" target="_blank" class="settings-link"><span class="sl-icon">🐦</span>@Rockhood_ on X<span class="sl-arrow">→</span></a>
+        <a href="https://docs.robinhood.com/chain" target="_blank" class="settings-link"><span class="sl-icon">📄</span>Robinhood Chain Docs<span class="sl-arrow">→</span></a>
+      </div>
+    </div>
+    <button class="wallet-close" onclick="closeSettings()">Done</button>
+  </div>
+</div>
 
 <!-- WALLET CONNECT MODAL -->
 <div class="wallet-overlay" id="walletModal">
@@ -621,6 +685,27 @@ async function doConnect(eth){
 // Legacy alias
 function connectWallet(){openWalletModal()}
 
+// --- SETTINGS ---
+let slippagePct=1;
+function openSettings(){document.getElementById('settingsModal').classList.add('active')}
+function closeSettings(){document.getElementById('settingsModal').classList.remove('active')}
+document.getElementById('settingsModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings()});
+function setSlippage(val,btn){
+  slippagePct=val;
+  document.getElementById('customSlippage').value='';
+  document.querySelectorAll('.slippage-btns button').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  localStorage.setItem('rh_slippage',val);
+}
+function setCustomSlippage(val){
+  const v=parseFloat(val);if(!v||v<=0||v>50)return;
+  slippagePct=v;
+  document.querySelectorAll('.slippage-btns button').forEach(b=>b.classList.remove('active'));
+  localStorage.setItem('rh_slippage',v);
+}
+// Load saved slippage
+(function(){const s=localStorage.getItem('rh_slippage');if(s){slippagePct=parseFloat(s);document.querySelectorAll('.slippage-btns button').forEach(b=>{if(parseFloat(b.textContent)===slippagePct)b.classList.add('active');else b.classList.remove('active')});if(![0.5,1,3,5].includes(slippagePct))document.getElementById('customSlippage').value=slippagePct}})()
+
 // CREATE TOKEN
 async function handleLaunch(e){
   e.preventDefault();
@@ -717,7 +802,7 @@ function showModal(ctx){
   const m=document.getElementById('modal'),t=document.getElementById('modalText');
   if(ctx==='Docs')t.innerHTML='📄 Documentation is being prepared. Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> on X for updates!';
   else if(ctx==='Telegram group')t.innerHTML='💬 Telegram group launching soon! Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> for the link.';
-  else if(ctx==='Settings')t.innerHTML='⚙️ Settings coming in the next update.';
+  else if(ctx==='Settings'){openSettings();return;}
   else t.innerHTML=ctx;
   m.classList.add('active');
 }
