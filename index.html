@@ -63,6 +63,7 @@
     .btn-wallet:hover{border-color:var(--green)}
     .btn-wallet.connected{color:var(--green)}
     .btn-wallet .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+    .btn-wallet .wallet-bal{color:var(--green);font-weight:600}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
     .mobile-menu{display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;color:var(--text)}
     .mobile-menu svg{width:18px;height:18px}
@@ -603,7 +604,7 @@ async function ensureChain(eth){
   catch(e){if(e.code===4902||e.code===4001&&e.message?.includes('Unrecognized'))await eth.request({method:'wallet_addEthereumChain',params:[RH_CHAIN]});else throw e}
 }
 
-function openWalletModal(){
+async function openWalletModal(){
   const btn=document.getElementById('walletBtn');
   // If already connected, disconnect
   if(walletAddress){
@@ -612,15 +613,25 @@ function openWalletModal(){
     return;
   }
   detectWallets();
+  const allWallets=eip6963Wallets.length?eip6963Wallets:detectedWallets;
+
+  // Auto-connect if exactly 1 wallet detected — skip modal
+  if(allWallets.length===1){
+    await doConnect(allWallets[0].provider);
+    return;
+  }
+  // Also auto-connect if window.ethereum exists and no multi-wallet
+  if(allWallets.length===0&&window.ethereum){
+    await doConnect(window.ethereum);
+    return;
+  }
+
   const list=document.getElementById('walletList');
   const deepDiv=document.getElementById('walletDeepLinks');
   const divider=document.getElementById('walletDivider');
   list.innerHTML='';deepDiv.innerHTML='';
 
-  // Combine EIP-6963 + legacy detected
-  const allWallets=eip6963Wallets.length?eip6963Wallets:detectedWallets;
-
-  if(allWallets.length>0){
+  if(allWallets.length>1){
     allWallets.forEach((w,i)=>{
       const el=document.createElement('div');el.className='wallet-option';
       const iconSrc=w.icon||(w.name.includes('MetaMask')?WALLET_ICONS.metamask:w.name.includes('Trust')?WALLET_ICONS.trust:w.name.includes('Coinbase')?WALLET_ICONS.coinbase:w.name.includes('Rabby')?WALLET_ICONS.rabby:null);
@@ -630,10 +641,10 @@ function openWalletModal(){
     });
   }
 
-  // Always show deep links on mobile OR when no wallet detected
+  // Show deep links on mobile OR when no wallet detected at all
   const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if(isMobile||allWallets.length===0){
-    if(allWallets.length>0){divider.style.display='';} else {divider.style.display='none';}
+    if(allWallets.length>0){divider.style.display='';divider.textContent='or open in wallet app';} else {divider.style.display='none';}
     deepDiv.style.display='';
     DEEP_LINKS.forEach(dl=>{
       const el=document.createElement('a');el.className='wallet-option';el.href=dl.url;el.target='_blank';el.rel='noopener';
@@ -641,7 +652,6 @@ function openWalletModal(){
       deepDiv.appendChild(el);
     });
     if(allWallets.length===0&&!isMobile){
-      // Desktop with no wallet — show install links
       divider.style.display='';divider.textContent='Install a wallet to get started';
       const installLinks=[
         {name:'MetaMask',icon:WALLET_ICONS.metamask,url:'https://metamask.io/download/',desc:'Most popular — Chrome, Firefox, Edge'},
@@ -665,6 +675,16 @@ function openWalletModal(){
 function closeWalletModal(){document.getElementById('walletModal').classList.remove('active')}
 document.getElementById('walletModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeWalletModal()});
 
+async function updateBalance(){
+  if(!provider||!walletAddress)return;
+  try{
+    const bal=await provider.getBalance(walletAddress);
+    const eth=parseFloat(ethers.formatEther(bal)).toFixed(4);
+    const btn=document.getElementById('walletBtn');
+    btn.innerHTML='<span class="dot"></span><span class="wallet-bal">'+eth+' ETH</span> · '+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);
+  }catch(e){console.log('Balance err:',e)}
+}
+
 async function doConnect(eth){
   closeWalletModal();
   const btn=document.getElementById('walletBtn');
@@ -675,13 +695,16 @@ async function doConnect(eth){
     signer=await provider.getSigner();
     walletAddress=await signer.getAddress();
     factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);
-    btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);
     btn.classList.add('connected');
+    await updateBalance();
     loadTokens(true);
+    // Auto-refresh balance every 30s
+    if(window._balInterval)clearInterval(window._balInterval);
+    window._balInterval=setInterval(updateBalance,30000);
     // Listen for changes on this provider
     eth.on('accountsChanged',async a=>{
-      if(!a.length){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected')}
-      else{provider=new ethers.BrowserProvider(eth);signer=await provider.getSigner();walletAddress=a[0];factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4)}
+      if(!a.length){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected');if(window._balInterval)clearInterval(window._balInterval)}
+      else{provider=new ethers.BrowserProvider(eth);signer=await provider.getSigner();walletAddress=a[0];factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);await updateBalance()}
     });
     eth.on('chainChanged',()=>window.location.reload());
   }catch(e){
@@ -820,14 +843,14 @@ async function doBuy(id){
   if(!signer){showModal('Connect wallet first!');return}
   const v=document.getElementById('buyAmt')?.value;
   if(!v||parseFloat(v)<=0){alert('Enter amount');return}
-  try{const tx=await factory.buy(id,{value:ethers.parseEther(v)});showModal('⏳ Buying...');await tx.wait();showModal('✅ Bought! Tokens in your wallet.');loadTokens()}
+  try{const tx=await factory.buy(id,{value:ethers.parseEther(v)});showModal('⏳ Buying...');await tx.wait();showModal('✅ Bought! Tokens in your wallet.');loadTokens(true);updateBalance()}
   catch(e){showModal('Buy failed: '+(e.shortMessage||e.reason||e.message))}
 }
 async function doSell(id){
   if(!signer){showModal('Connect wallet first!');return}
   const v=document.getElementById('sellAmt')?.value;
   if(!v||parseFloat(v)<=0){alert('Enter amount');return}
-  try{const tx=await factory.sell(id,ethers.parseEther(v));showModal('⏳ Selling...');await tx.wait();showModal('✅ Sold! ETH sent to your wallet.');loadTokens()}
+  try{const tx=await factory.sell(id,ethers.parseEther(v));showModal('⏳ Selling...');await tx.wait();showModal('✅ Sold! ETH sent to your wallet.');loadTokens(true);updateBalance()}
   catch(e){showModal('Sell failed: '+(e.shortMessage||e.reason||e.message))}
 }
 
