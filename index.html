@@ -610,63 +610,44 @@ async function openWalletModal(){
   if(walletAddress){
     walletAddress=null;signer=null;factory=null;
     btn.innerHTML='Connect Wallet';btn.classList.remove('connected');
+    if(window._balInterval)clearInterval(window._balInterval);
     return;
   }
-  detectWallets();
-  const allWallets=eip6963Wallets.length?eip6963Wallets:detectedWallets;
 
-  // Auto-connect if exactly 1 wallet detected — skip modal
-  if(allWallets.length===1){
-    await doConnect(allWallets[0].provider);
-    return;
-  }
-  // Also auto-connect if window.ethereum exists and no multi-wallet
-  if(allWallets.length===0&&window.ethereum){
+  // If ANY wallet exists in browser → connect directly, no modal
+  if(window.ethereum){
     await doConnect(window.ethereum);
     return;
   }
 
+  // No wallet in browser — show modal with options
   const list=document.getElementById('walletList');
   const deepDiv=document.getElementById('walletDeepLinks');
   const divider=document.getElementById('walletDivider');
   list.innerHTML='';deepDiv.innerHTML='';
 
-  if(allWallets.length>1){
-    allWallets.forEach((w,i)=>{
-      const el=document.createElement('div');el.className='wallet-option';
-      const iconSrc=w.icon||(w.name.includes('MetaMask')?WALLET_ICONS.metamask:w.name.includes('Trust')?WALLET_ICONS.trust:w.name.includes('Coinbase')?WALLET_ICONS.coinbase:w.name.includes('Rabby')?WALLET_ICONS.rabby:null);
-      el.innerHTML=(iconSrc?'<img src="'+iconSrc+'" alt="">':'<div class="wo-icon">🔗</div>')+'<div class="wo-info"><div class="wo-name">'+w.name+'</div><div class="wo-desc">Detected in browser</div></div><span class="wo-badge">Connect</span>';
-      el.onclick=()=>doConnect(w.provider);
-      list.appendChild(el);
-    });
-  }
-
-  // Show deep links on mobile OR when no wallet detected at all
   const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(isMobile||allWallets.length===0){
-    if(allWallets.length>0){divider.style.display='';divider.textContent='or open in wallet app';} else {divider.style.display='none';}
+  if(isMobile){
+    divider.style.display='none';
     deepDiv.style.display='';
     DEEP_LINKS.forEach(dl=>{
       const el=document.createElement('a');el.className='wallet-option';el.href=dl.url;el.target='_blank';el.rel='noopener';
       el.innerHTML='<img src="'+dl.icon+'" alt=""><div class="wo-info"><div class="wo-name">'+dl.name+'</div><div class="wo-desc">'+dl.desc+'</div></div><span class="wo-badge">Open →</span>';
       deepDiv.appendChild(el);
     });
-    if(allWallets.length===0&&!isMobile){
-      divider.style.display='';divider.textContent='Install a wallet to get started';
-      const installLinks=[
-        {name:'MetaMask',icon:WALLET_ICONS.metamask,url:'https://metamask.io/download/',desc:'Most popular — Chrome, Firefox, Edge'},
-        {name:'Rabby',icon:WALLET_ICONS.rabby,url:'https://rabby.io/',desc:'Multi-chain, great UX'},
-        {name:'Coinbase Wallet',icon:WALLET_ICONS.coinbase,url:'https://www.coinbase.com/wallet',desc:'By Coinbase'},
-      ];
-      deepDiv.innerHTML='';deepDiv.style.display='';
-      installLinks.forEach(il=>{
-        const el=document.createElement('a');el.className='wallet-option';el.href=il.url;el.target='_blank';el.rel='noopener';
-        el.innerHTML='<img src="'+il.icon+'" alt=""><div class="wo-info"><div class="wo-name">'+il.name+'</div><div class="wo-desc">'+il.desc+'</div></div><span class="wo-badge">Install →</span>';
-        deepDiv.appendChild(el);
-      });
-    }
   }else{
-    divider.style.display='none';deepDiv.style.display='none';
+    divider.style.display='';divider.textContent='Install a wallet to get started';
+    deepDiv.style.display='';
+    const installLinks=[
+      {name:'MetaMask',icon:WALLET_ICONS.metamask,url:'https://metamask.io/download/',desc:'Most popular — Chrome, Firefox, Edge'},
+      {name:'Rabby',icon:WALLET_ICONS.rabby,url:'https://rabby.io/',desc:'Multi-chain, great UX'},
+      {name:'Coinbase Wallet',icon:WALLET_ICONS.coinbase,url:'https://www.coinbase.com/wallet',desc:'By Coinbase'},
+    ];
+    installLinks.forEach(il=>{
+      const el=document.createElement('a');el.className='wallet-option';el.href=il.url;el.target='_blank';el.rel='noopener';
+      el.innerHTML='<img src="'+il.icon+'" alt=""><div class="wo-info"><div class="wo-name">'+il.name+'</div><div class="wo-desc">'+il.desc+'</div></div><span class="wo-badge">Install →</span>';
+      deepDiv.appendChild(el);
+    });
   }
 
   document.getElementById('walletModal').classList.add('active');
