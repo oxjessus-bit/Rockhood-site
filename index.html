@@ -269,31 +269,31 @@
       </div>
       <div class="hero-right">
         <div class="trending-header">
-          <span>Coming Soon</span>
-          <a href="#launch" onclick="scrollTo('launch')">Be first →</a>
+          <span>Trending</span>
+          <a href="#launch" onclick="scrollTo('launch')">Launch yours →</a>
         </div>
-        <div class="trending-card" onclick="showModal('Mainnet')">
+        <div class="trending-card" onclick="scrollTo('launch')">
           <div class="trending-avatar">🚀</div>
           <div class="trending-info">
-            <div class="trending-name"><strong>Your Token Here</strong><span>$TICKER</span></div>
-            <div class="trending-stats"><span class="mcap">Launch coming July 2026</span></div>
+            <div class="trending-name"><strong>Be the First</strong><span>$YOUR</span></div>
+            <div class="trending-stats"><span class="mcap">Launch your token now</span><span class="change up">Live</span></div>
           </div>
         </div>
-        <div class="trending-card" onclick="showModal('Mainnet')">
+        <div class="trending-card" onclick="scrollTo('launch')">
           <div class="trending-avatar">💎</div>
           <div class="trending-info">
-            <div class="trending-name"><strong>Be an Early Creator</strong><span>$FIRST</span></div>
-            <div class="trending-stats"><span class="mcap">No code needed</span><span class="change up">Free</span></div>
+            <div class="trending-name"><strong>No Code Needed</strong><span>Easy</span></div>
+            <div class="trending-stats"><span class="mcap">Fill form → deploy</span><span class="change up">0.001 ETH</span></div>
           </div>
         </div>
-        <div class="trending-card" onclick="showModal('Mainnet')">
+        <div class="trending-card" onclick="scrollTo('launch')">
           <div class="trending-avatar">⚡</div>
           <div class="trending-info">
             <div class="trending-name"><strong>Low Gas Fees</strong><span>ETH</span></div>
             <div class="trending-stats"><span class="mcap">Robinhood Chain</span><span class="change up">~$0.01</span></div>
           </div>
         </div>
-        <div class="trending-card" onclick="showModal('Mainnet')">
+        <div class="trending-card" onclick="scrollTo('launch')">
           <div class="trending-avatar">🎓</div>
           <div class="trending-info">
             <div class="trending-name"><strong>Auto Graduation</strong><span>UNI</span></div>
@@ -368,7 +368,7 @@
   <div class="modal">
     <div class="modal-icon">🚀</div>
     <h2>Coming Soon</h2>
-    <p id="modalText">Mainnet launch scheduled for <strong>July 2026</strong>. Follow <strong>@Rockhood_</strong> on X for updates!</p>
+    <p id="modalText"></p>
     <button class="btn-close" onclick="closeModal()">Got It</button>
   </div>
 </div>
@@ -454,7 +454,7 @@ async function ensureChain(){
 async function connectWallet(){
   const btn=document.getElementById('walletBtn');
   if(walletAddress){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected');return}
-  if(!window.ethereum){showModal('Please install MetaMask!');return}
+  if(!window.ethereum){showModal('🦊 <strong>MetaMask Required</strong><br><br>Install MetaMask from <a href="https://metamask.io" target="_blank" style="color:var(--green)">metamask.io</a> to connect your wallet and start launching tokens.');return}
   try{
     await ensureChain();
     provider=new ethers.BrowserProvider(window.ethereum);
@@ -569,9 +569,9 @@ async function doSell(id){
 // MODAL
 function showModal(ctx){
   const m=document.getElementById('modal'),t=document.getElementById('modalText');
-  if(ctx==='Docs')t.innerHTML='Documentation coming soon. Follow <strong>@Rockhood_</strong> on X!';
-  else if(ctx==='Telegram group')t.innerHTML='Telegram group launching soon!';
-  else if(ctx==='Settings')t.innerHTML='Settings coming soon!';
+  if(ctx==='Docs')t.innerHTML='📄 Documentation is being prepared. Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> on X for updates!';
+  else if(ctx==='Telegram group')t.innerHTML='💬 Telegram group launching soon! Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> for the link.';
+  else if(ctx==='Settings')t.innerHTML='⚙️ Settings coming in the next update.';
   else t.innerHTML=ctx;
   m.classList.add('active');
 }
