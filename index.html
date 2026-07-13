@@ -39,9 +39,9 @@
       --bg2: #111119;
       --bg3: #1a1a26;
       --bg4: #22223a;
-      --green: #00e87b;
-      --green-glow: rgba(0, 232, 123, 0.15);
-      --green-glow2: rgba(0, 232, 123, 0.06);
+      --green: #c4ff00;
+      --green-glow: rgba(196, 255, 0, 0.15);
+      --green-glow2: rgba(196, 255, 0, 0.06);
       --white: #f0f0f5;
       --gray: #8888aa;
       --gray-light: #aaaabb;
@@ -67,7 +67,7 @@
       position: relative;
     }
 
-    /* Professional mesh gradient background */
+    /* Vibrant green mesh gradient background */
     body::before {
       content: '';
       position: fixed;
@@ -76,15 +76,24 @@
       right: 0;
       bottom: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0, 232, 123, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 40% at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 60% at 60% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
-        radial-gradient(ellipse 70% 30% at 10% 90%, rgba(0, 232, 123, 0.03) 0%, transparent 50%);
+        radial-gradient(ellipse 90% 60% at 15% 20%, rgba(196, 255, 0, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse 70% 50% at 85% 15%, rgba(196, 255, 0, 0.08) 0%, transparent 45%),
+        radial-gradient(ellipse 60% 70% at 50% 90%, rgba(196, 255, 0, 0.07) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 40% at 70% 50%, rgba(150, 220, 0, 0.05) 0%, transparent 45%),
+        radial-gradient(ellipse 50% 50% at 5% 70%, rgba(196, 255, 0, 0.06) 0%, transparent 40%),
+        radial-gradient(ellipse 40% 30% at 90% 80%, rgba(180, 240, 0, 0.05) 0%, transparent 40%);
       pointer-events: none;
       z-index: 0;
+      animation: meshFloat 12s ease-in-out infinite alternate;
     }
 
-    /* Subtle noise texture overlay */
+    @keyframes meshFloat {
+      0% { opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { opacity: 0.85; }
+    }
+
+    /* Noise texture overlay */
     body::after {
       content: '';
       position: fixed;
@@ -95,7 +104,7 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
       pointer-events: none;
       z-index: 0;
-      opacity: 0.5;
+      opacity: 0.4;
     }
 
     .navbar, .hero, .how-it-works, .features, .launch-section, .footer {
@@ -223,15 +232,18 @@
       top: -200px;
       left: 50%;
       transform: translateX(-50%);
-      width: 1000px;
-      height: 800px;
-      background: radial-gradient(ellipse, rgba(0, 232, 123, 0.12) 0%, rgba(0, 232, 123, 0.04) 30%, transparent 60%);
+      width: 1200px;
+      height: 900px;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 30%, rgba(196, 255, 0, 0.18) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 30% at 30% 60%, rgba(196, 255, 0, 0.10) 0%, transparent 40%),
+        radial-gradient(ellipse 35% 25% at 75% 45%, rgba(180, 240, 0, 0.08) 0%, transparent 40%);
       pointer-events: none;
       animation: heroGlow 8s ease-in-out infinite alternate;
     }
     @keyframes heroGlow {
-      0% { opacity: 0.7; transform: translateX(-50%) scale(1); }
-      100% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+      0% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+      100% { opacity: 1; transform: translateX(-50%) scale(1.08); }
     }
     .hero::after {
       content: '';
@@ -241,9 +253,9 @@
       right: 0;
       bottom: 0;
       background:
-        linear-gradient(180deg, transparent 0%, rgba(10, 10, 15, 0.3) 100%),
-        repeating-linear-gradient(90deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 1px, transparent 1px, transparent 120px),
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 1px, transparent 1px, transparent 120px);
+        linear-gradient(180deg, transparent 0%, rgba(10, 10, 15, 0.4) 100%),
+        repeating-linear-gradient(90deg, rgba(196, 255, 0, 0.015) 0px, rgba(196, 255, 0, 0.015) 1px, transparent 1px, transparent 100px),
+        repeating-linear-gradient(0deg, rgba(196, 255, 0, 0.015) 0px, rgba(196, 255, 0, 0.015) 1px, transparent 1px, transparent 100px);
       pointer-events: none;
     }
 
@@ -404,10 +416,10 @@
       position: relative;
     }
     .step:hover {
-      border-color: rgba(0, 232, 123, 0.3);
+      border-color: rgba(196, 255, 0, 0.3);
       transform: translateY(-4px);
-      box-shadow: 0 12px 40px var(--green-glow2), 0 0 0 1px rgba(0, 232, 123, 0.1);
-      background: linear-gradient(135deg, var(--bg2) 0%, rgba(0, 232, 123, 0.03) 100%);
+      box-shadow: 0 12px 40px var(--green-glow2), 0 0 0 1px rgba(196, 255, 0, 0.1);
+      background: linear-gradient(135deg, var(--bg2) 0%, rgba(196, 255, 0, 0.04) 100%);
     }
 
     .step-number {
@@ -476,10 +488,10 @@
       transition: all var(--transition);
     }
     .feature-card:hover {
-      border-color: rgba(0, 232, 123, 0.2);
+      border-color: rgba(196, 255, 0, 0.2);
       transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-      background: linear-gradient(135deg, var(--bg2) 0%, rgba(0, 232, 123, 0.02) 100%);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(196, 255, 0, 0.03);
+      background: linear-gradient(135deg, var(--bg2) 0%, rgba(196, 255, 0, 0.03) 100%);
     }
 
     .feature-icon {
