@@ -105,6 +105,34 @@
     .trending-stats .change.up{color:#22c55e}
     .trending-stats .change.down{color:#ef4444}
 
+    /* ===== PORTFOLIO ===== */
+    .portfolio{display:none;max-width:1200px;margin:0 auto;padding:24px 16px 0}
+    .portfolio.visible{display:block}
+    .portfolio-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .portfolio-header h2{font-family:var(--font-h);font-size:22px;font-weight:700;letter-spacing:-0.5px}
+    .portfolio-header .refresh-btn{background:none;border:1px solid var(--border);color:var(--text-sub);padding:6px 14px;border-radius:8px;font-size:12px;font-family:var(--font-b);cursor:pointer;transition:all 0.2s}
+    .portfolio-header .refresh-btn:hover{border-color:var(--green);color:var(--green)}
+    .portfolio-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+    .ps-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px}
+    .ps-card .ps-label{font-size:11px;color:var(--text-sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+    .ps-card .ps-val{font-family:var(--font-h);font-size:20px;font-weight:700}
+    .ps-card .ps-val.green{color:var(--green)}
+    .asset-list{display:flex;flex-direction:column;gap:8px}
+    .asset-row{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;transition:all 0.2s;cursor:pointer}
+    .asset-row:hover{border-color:var(--green-15);background:var(--bg-hover)}
+    .asset-icon{width:40px;height:40px;border-radius:50%;background:var(--green-10);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--green);flex-shrink:0}
+    .asset-icon.eth-icon{background:linear-gradient(135deg,#627eea,#3b5998)}
+    .asset-icon.eth-icon span{color:#fff}
+    .asset-info{flex:1;min-width:0}
+    .asset-name{font-weight:600;font-size:14px}
+    .asset-ticker{font-size:12px;color:var(--text-sub)}
+    .asset-right{text-align:right}
+    .asset-balance{font-weight:600;font-size:14px}
+    .asset-value{font-size:12px;color:var(--text-sub)}
+    .asset-empty{text-align:center;padding:40px 20px;color:var(--text-sub);font-size:14px}
+    .asset-empty .ae-icon{font-size:32px;margin-bottom:8px}
+    .asset-loading{text-align:center;padding:24px;color:var(--text-sub);font-size:13px}
+
     /* ===== SECTIONS ===== */
     .section{max-width:1200px;margin:0 auto;padding:80px 16px}
     .section-label{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:2px;color:var(--green);margin-bottom:16px}
@@ -331,6 +359,18 @@
       </div>
     </div>
   </section>
+
+  <!-- PORTFOLIO (shown after wallet connect) -->
+  <div class="portfolio" id="portfolio">
+    <div class="portfolio-header">
+      <h2>💼 Your Assets</h2>
+      <button class="refresh-btn" onclick="loadPortfolio()">↻ Refresh</button>
+    </div>
+    <div class="portfolio-summary" id="portfolioSummary"></div>
+    <div class="asset-list" id="assetList">
+      <div class="asset-loading">Loading assets...</div>
+    </div>
+  </div>
 
   <!-- HOW IT WORKS -->
   <section class="section" id="how">
@@ -571,6 +611,7 @@ async function connectWallet(){
     walletAddress=null;signer=null;factory=null;activeEthProvider=null;
     btn.innerHTML='Connect Wallet';btn.classList.remove('connected');
     if(window._balInterval)clearInterval(window._balInterval);
+    document.getElementById('portfolio').classList.remove('visible');
     // Disconnect WalletConnect session if active
     if(wcProvider&&wcProvider.connected){try{await wcProvider.disconnect()}catch(e){}}
     return;
@@ -622,6 +663,7 @@ async function doConnect(eth){
     btn.classList.add('connected');
     await updateBalance();
     loadTokens(true);
+    loadPortfolio();
     // Auto-refresh balance every 30s
     if(window._balInterval)clearInterval(window._balInterval);
     window._balInterval=setInterval(updateBalance,30000);
@@ -637,6 +679,89 @@ async function doConnect(eth){
   }catch(e){
     btn.textContent='Connect Wallet';
     if(e.code!==4001)showModal('Connect failed: '+(e.shortMessage||e.message));
+  }
+}
+
+// --- PORTFOLIO ---
+const ERC20_ABI=["function balanceOf(address) view returns (uint256)","function symbol() view returns (string)","function name() view returns (string)","function decimals() view returns (uint8)"];
+
+async function loadPortfolio(){
+  if(!walletAddress){document.getElementById('portfolio').classList.remove('visible');return}
+  const panel=document.getElementById('portfolio');
+  const list=document.getElementById('assetList');
+  const summary=document.getElementById('portfolioSummary');
+  panel.classList.add('visible');
+  list.innerHTML='<div class="asset-loading">⏳ Loading assets...</div>';
+
+  const rp=getReadProvider();
+  const rf=new ethers.Contract(FACTORY_ADDR,FABI,rp);
+  const assets=[];
+
+  try{
+    // ETH balance
+    const ethBal=await rpcRetry(()=>rp.getBalance(walletAddress));
+    const ethFormatted=parseFloat(ethers.formatEther(ethBal)).toFixed(4);
+    assets.push({name:'Ethereum',symbol:'ETH',balance:ethFormatted,isETH:true,value:ethBal});
+
+    // Get all Rockhood tokens and check balances
+    const count=await rpcRetry(()=>rf.totalTokens());
+    const total=Number(count);
+
+    for(let i=0;i<total;i++){
+      await sleep(RPC_DELAY);
+      const t=await rpcRetry(()=>rf.tokens(i));
+      const[tokenAddr,tName,tSym,,desc,creator,raised,supply,grad]=t;
+      
+      await sleep(RPC_DELAY);
+      const tokenContract=new ethers.Contract(tokenAddr,ERC20_ABI,rp);
+      const bal=await rpcRetry(()=>tokenContract.balanceOf(walletAddress));
+      
+      if(bal>0n){
+        await sleep(RPC_DELAY);
+        const price=await rpcRetry(()=>rf.getPrice(i));
+        const balFormatted=parseFloat(ethers.formatEther(bal));
+        const priceFormatted=parseFloat(ethers.formatEther(price));
+        const valueETH=balFormatted*priceFormatted;
+        assets.push({
+          name:tName,symbol:tSym,balance:balFormatted.toFixed(2),
+          tokenId:i,addr:tokenAddr,price:priceFormatted,
+          valueETH:valueETH.toFixed(6),grad,rawDesc:desc
+        });
+      }
+    }
+
+    // Render summary
+    const tokenCount=assets.filter(a=>!a.isETH).length;
+    summary.innerHTML=
+      '<div class="ps-card"><div class="ps-label">ETH Balance</div><div class="ps-val green">'+ethFormatted+' ETH</div></div>'+
+      '<div class="ps-card"><div class="ps-label">Tokens Held</div><div class="ps-val">'+tokenCount+'</div></div>'+
+      '<div class="ps-card"><div class="ps-label">Tokens on Rockhood</div><div class="ps-val">'+total+'</div></div>';
+
+    // Render asset list
+    list.innerHTML='';
+
+    // ETH row
+    const ethRow=document.createElement('div');ethRow.className='asset-row';
+    ethRow.innerHTML='<div class="asset-icon eth-icon"><span>Ξ</span></div><div class="asset-info"><div class="asset-name">Ethereum</div><div class="asset-ticker">ETH · Robinhood Chain</div></div><div class="asset-right"><div class="asset-balance">'+ethFormatted+'</div><div class="asset-value">Native token</div></div>';
+    list.appendChild(ethRow);
+
+    // Token rows
+    assets.filter(a=>!a.isETH).forEach(tk=>{
+      const row=document.createElement('div');row.className='asset-row';
+      row.onclick=()=>openTrade(tk.tokenId,tk.name,tk.symbol,tk.addr,0,tk.price,tk.grad,tk.rawDesc);
+      row.innerHTML='<div class="asset-icon">'+tk.name.charAt(0).toUpperCase()+'</div><div class="asset-info"><div class="asset-name">'+tk.name+'</div><div class="asset-ticker">$'+tk.symbol+(tk.grad?' · 🎓 Graduated':'')+'</div></div><div class="asset-right"><div class="asset-balance">'+tk.balance+'</div><div class="asset-value">≈ '+tk.valueETH+' ETH</div></div>';
+      list.appendChild(row);
+    });
+
+    if(tokenCount===0){
+      const empty=document.createElement('div');empty.className='asset-empty';
+      empty.innerHTML='<div class="ae-icon">🪙</div>No Rockhood tokens yet<br><a href="#launch" onclick="scrollTo(\'launch\')" style="color:var(--green)">Create one</a> or buy from trending!';
+      list.appendChild(empty);
+    }
+
+  }catch(e){
+    console.error('Portfolio error:',e);
+    list.innerHTML='<div class="asset-empty"><div class="ae-icon">⚠️</div>Failed to load assets. <button onclick="loadPortfolio()" style="color:var(--green);background:none;border:none;cursor:pointer;font-size:inherit;text-decoration:underline">Try again</button></div>';
   }
 }
 
