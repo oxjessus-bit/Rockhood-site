@@ -67,8 +67,9 @@
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
     .mobile-menu{display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;color:var(--text);position:relative;z-index:92}
     .mobile-menu svg{width:18px;height:18px}
-    .mobile-dropdown{display:none;position:absolute;top:calc(32px + var(--header-h));right:0;left:0;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 16px 16px;z-index:91;flex-direction:column;gap:4px}
+    .mobile-dropdown{display:none;position:fixed;top:calc(32px + var(--header-h));right:0;left:0;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 16px 16px;z-index:91;flex-direction:column;gap:4px;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
     .mobile-dropdown.open{display:flex}
+    @media(min-width:769px){.mobile-dropdown{display:none!important}}
     .mobile-dropdown a{display:flex;align-items:center;gap:10px;padding:12px 14px;color:var(--text);text-decoration:none;font-size:14px;font-weight:500;border-radius:10px;transition:all 0.2s}
     .mobile-dropdown a:hover,.mobile-dropdown a:active{background:var(--bg-hover)}
     .mobile-dropdown a .md-icon{font-size:16px;width:24px;text-align:center}
