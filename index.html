@@ -65,8 +65,15 @@
     .btn-wallet .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
     .btn-wallet .wallet-bal{color:var(--green);font-weight:600}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-    .mobile-menu{display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;color:var(--text)}
+    .mobile-menu{display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:6px;cursor:pointer;color:var(--text);position:relative;z-index:92}
     .mobile-menu svg{width:18px;height:18px}
+    .mobile-dropdown{display:none;position:absolute;top:calc(32px + var(--header-h));right:0;left:0;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 16px 16px;z-index:91;flex-direction:column;gap:4px}
+    .mobile-dropdown.open{display:flex}
+    .mobile-dropdown a{display:flex;align-items:center;gap:10px;padding:12px 14px;color:var(--text);text-decoration:none;font-size:14px;font-weight:500;border-radius:10px;transition:all 0.2s}
+    .mobile-dropdown a:hover,.mobile-dropdown a:active{background:var(--bg-hover)}
+    .mobile-dropdown a .md-icon{font-size:16px;width:24px;text-align:center}
+    .mobile-dropdown .md-divider{height:1px;background:var(--border);margin:4px 0}
+    .mobile-dropdown .md-launch{background:var(--green-10);color:var(--green);font-weight:600}
 
     /* ===== MAIN CONTENT ===== */
     .main{flex:1;padding-top:calc(32px + var(--header-h));padding-bottom:32px}
@@ -304,6 +311,20 @@
     </div>
   </div>
 </header>
+
+<!-- MOBILE DROPDOWN -->
+<div class="mobile-dropdown" id="mobileDropdown">
+  <a href="#launch" onclick="scrollTo('launch');toggleMobileMenu()"><span class="md-icon">🚀</span>Launch Token</a>
+  <a href="#how" onclick="scrollTo('how');toggleMobileMenu()"><span class="md-icon">📋</span>How It Works</a>
+  <a href="#features" onclick="scrollTo('features');toggleMobileMenu()"><span class="md-icon">⚡</span>Features</a>
+  <div class="md-divider"></div>
+  <a href="#" onclick="connectWallet();toggleMobileMenu()"><span class="md-icon">👛</span>Connect Wallet</a>
+  <a href="#" onclick="openSettings();toggleMobileMenu()"><span class="md-icon">⚙️</span>Settings</a>
+  <div class="md-divider"></div>
+  <a href="https://x.com/Rockhood_" target="_blank"><span class="md-icon">🐦</span>@Rockhood_ on X</a>
+  <a href="#" onclick="showModal('Docs');toggleMobileMenu()"><span class="md-icon">📄</span>Docs</a>
+  <a href="#" onclick="showModal('Telegram group');toggleMobileMenu()"><span class="md-icon">💬</span>Telegram</a>
+</div>
 
 <!-- MAIN -->
 <div class="main">
@@ -925,7 +946,14 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.cu
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 function handleUpload(e){const f=e.target.files[0];if(f){document.getElementById('uploadArea').querySelector('.u-icon').textContent='✅';document.getElementById('uploadArea').querySelector('.u-text').innerHTML='<strong>'+f.name+'</strong><br>Click to change'}}
 function scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}
-function toggleMobileMenu(){}
+function toggleMobileMenu(){
+  const d=document.getElementById('mobileDropdown');
+  const btn=document.querySelector('.mobile-menu');
+  const isOpen=d.classList.toggle('open');
+  btn.innerHTML=isOpen?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
+}
+// Close menu when clicking outside
+document.addEventListener('click',e=>{const d=document.getElementById('mobileDropdown');const btn=document.querySelector('.mobile-menu');if(d.classList.contains('open')&&!d.contains(e.target)&&!btn.contains(e.target))toggleMobileMenu()});
 const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}})},{threshold:0.1,rootMargin:'0px 0px -30px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 loadTokens();
