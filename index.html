@@ -442,8 +442,8 @@
 <!-- MODAL -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <div class="modal-icon">🚀</div>
-    <h2>Coming Soon</h2>
+    <div class="modal-icon" id="modalIcon">🚀</div>
+    <h2 id="modalTitle"></h2>
     <p id="modalText"></p>
     <button class="btn-close" onclick="closeModal()">Got It</button>
   </div>
@@ -912,11 +912,12 @@ async function doSell(id){
 
 // MODAL
 function showModal(ctx){
-  const m=document.getElementById('modal'),t=document.getElementById('modalText');
-  if(ctx==='Docs')t.innerHTML='📄 Documentation is being prepared. Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> on X for updates!';
-  else if(ctx==='Telegram group')t.innerHTML='💬 Telegram group launching soon! Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> for the link.';
+  const m=document.getElementById('modal'),t=document.getElementById('modalText'),ti=document.getElementById('modalTitle'),ic=document.getElementById('modalIcon');
+  ti.textContent='';ic.textContent='';
+  if(ctx==='Docs'){ic.textContent='📄';ti.textContent='Documentation';t.innerHTML='Documentation is being prepared. Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> on X for updates!';}
+  else if(ctx==='Telegram group'){ic.textContent='💬';ti.textContent='Telegram';t.innerHTML='Telegram group launching soon! Follow <strong><a href="https://x.com/Rockhood_" target="_blank" style="color:var(--green)">@Rockhood_</a></strong> for the link.';}
   else if(ctx==='Settings'){openSettings();return;}
-  else t.innerHTML=ctx;
+  else{t.innerHTML=ctx;}
   m.classList.add('active');
 }
 function closeModal(){document.getElementById('modal').classList.remove('active')}
