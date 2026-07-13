@@ -165,6 +165,26 @@
     .modal .btn-close:hover{background:rgba(255,255,255,0.08)}
     @keyframes modalIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
 
+    /* ===== WALLET MODAL ===== */
+    .wallet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);z-index:300;align-items:center;justify-content:center;padding:24px}
+    .wallet-overlay.active{display:flex}
+    .wallet-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:32px 24px;max-width:380px;width:100%;animation:modalIn 0.2s ease}
+    .wallet-modal h2{font-family:var(--font-h);font-size:20px;font-weight:700;text-align:center;margin-bottom:6px}
+    .wallet-modal .wm-sub{text-align:center;color:var(--text-sub);font-size:13px;margin-bottom:24px}
+    .wallet-list{display:flex;flex-direction:column;gap:8px}
+    .wallet-option{display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all 0.2s;text-decoration:none;color:var(--text)}
+    .wallet-option:hover{background:var(--bg-hover);border-color:var(--green-15)}
+    .wallet-option img{width:36px;height:36px;border-radius:10px}
+    .wallet-option .wo-icon{width:36px;height:36px;border-radius:10px;background:var(--green-10);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .wallet-option .wo-info{flex:1;min-width:0}
+    .wallet-option .wo-name{font-weight:600;font-size:14px}
+    .wallet-option .wo-desc{font-size:11px;color:var(--text-sub);margin-top:2px}
+    .wallet-option .wo-badge{font-size:10px;font-weight:600;color:var(--green);background:var(--green-10);padding:3px 8px;border-radius:6px;white-space:nowrap}
+    .wallet-divider{display:flex;align-items:center;gap:12px;margin:12px 0;font-size:11px;color:var(--text-sub2)}
+    .wallet-divider::before,.wallet-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    .wallet-close{display:block;margin:16px auto 0;background:none;border:1px solid var(--border);color:var(--text-sub);padding:8px 24px;border-radius:50px;font-size:13px;font-family:var(--font-b);cursor:pointer;transition:all 0.2s}
+    .wallet-close:hover{color:var(--text);border-color:var(--border-hover)}
+
     /* ===== FOOTER ===== */
     .footer{border-top:1px solid var(--border);padding:24px 16px}
     .footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
@@ -216,13 +236,13 @@
   <div class="fade-r"></div>
   <div class="ticker-track">
     <span class="ticker-item"><span class="label">Tokens Launched</span><span class="val">0</span></span><span class="ticker-sep">|</span>
-    <span class="ticker-item"><span class="label">Volume</span><span class="val">$0</span><span class="up">Coming Soon</span></span><span class="ticker-sep">|</span>
+    <span class="ticker-item"><span class="label">Volume</span><span class="val">$0</span><span class="up">Live</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">Avg Gas</span><span class="val">~$0.01</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">Chain</span><span class="val">Robinhood Chain</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">DEX</span><span class="val">Uniswap</span></span><span class="ticker-sep">|</span>
     <!-- duplicate for seamless scroll -->
     <span class="ticker-item"><span class="label">Tokens Launched</span><span class="val">0</span></span><span class="ticker-sep">|</span>
-    <span class="ticker-item"><span class="label">Volume</span><span class="val">$0</span><span class="up">Coming Soon</span></span><span class="ticker-sep">|</span>
+    <span class="ticker-item"><span class="label">Volume</span><span class="val">$0</span><span class="up">Live</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">Avg Gas</span><span class="val">~$0.01</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">Chain</span><span class="val">Robinhood Chain</span></span><span class="ticker-sep">|</span>
     <span class="ticker-item"><span class="label">DEX</span><span class="val">Uniswap</span></span><span class="ticker-sep">|</span>
@@ -414,6 +434,22 @@
   </div>
 </nav>
 
+<!-- WALLET CONNECT MODAL -->
+<div class="wallet-overlay" id="walletModal">
+  <div class="wallet-modal">
+    <h2>Connect Wallet</h2>
+    <p class="wm-sub">Choose your wallet to get started</p>
+    <div class="wallet-list" id="walletList">
+      <!-- Injected wallets auto-detected here -->
+    </div>
+    <div class="wallet-divider" id="walletDivider" style="display:none">or open in wallet app</div>
+    <div class="wallet-list" id="walletDeepLinks" style="display:none">
+      <!-- Deep links for mobile -->
+    </div>
+    <button class="wallet-close" onclick="closeWalletModal()">Cancel</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script>
 const FACTORY_ADDR='0x0A13180bFcae1A09BFdC8EB844f3F7e97d6E75a9';
@@ -447,33 +483,143 @@ function getReadProvider(){
   return new ethers.JsonRpcProvider(RPC_URL,{chainId:4663,name:'robinhood'},{staticNetwork:true,batchMaxCount:1});
 }
 
-async function ensureChain(){
-  try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x1237'}]})}
-  catch(e){if(e.code===4902)await window.ethereum.request({method:'wallet_addEthereumChain',params:[RH_CHAIN]});else throw e}
+// --- WALLET DETECTION & CONNECTION ---
+const WALLET_ICONS={
+  metamask:'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
+  trust:'https://trustwallet.com/assets/images/media/assets/trust_platform.svg',
+  coinbase:'https://altcoinsbox.com/wp-content/uploads/2022/12/coinbase-wallet-logo-150x150.png',
+  rabby:'https://rabby.io/assets/logo.svg',
+  okx:'https://static.okx.com/cdn/assets/imgs/247/58E63FEA47A2B7D7.png',
+};
+const DEEP_LINKS=[
+  {name:'MetaMask',icon:WALLET_ICONS.metamask,url:'https://metamask.app.link/dapp/rockhood.fun',desc:'Popular & trusted'},
+  {name:'Trust Wallet',icon:WALLET_ICONS.trust,url:'https://link.trustwallet.com/open_url?coin_id=60&url=https://rockhood.fun',desc:'Mobile-first wallet'},
+  {name:'Coinbase Wallet',icon:WALLET_ICONS.coinbase,url:'https://go.cb-w.com/dapp?cb_url=https://rockhood.fun',desc:'By Coinbase'},
+  {name:'OKX Wallet',icon:WALLET_ICONS.okx,url:'okx://wallet/dapp/url?dappUrl=https://rockhood.fun',desc:'OKX ecosystem'},
+];
+let detectedWallets=[];
+
+function detectWallets(){
+  detectedWallets=[];
+  if(!window.ethereum)return;
+  // EIP-6963: multi-wallet detection
+  if(window.ethereum.providers&&window.ethereum.providers.length){
+    window.ethereum.providers.forEach(p=>{
+      const name=p.isMetaMask?'MetaMask':p.isTrust?'Trust Wallet':p.isCoinbaseWallet?'Coinbase Wallet':p.isRabby?'Rabby':p.isOkxWallet?'OKX Wallet':'Wallet';
+      detectedWallets.push({name,provider:p});
+    });
+  }else{
+    const p=window.ethereum;
+    const name=p.isMetaMask?'MetaMask':p.isTrust||p.isTrustWallet?'Trust Wallet':p.isCoinbaseWallet?'Coinbase Wallet':p.isRabby?'Rabby':p.isOkxWallet?'OKX Wallet':p.isBraveWallet?'Brave Wallet':p.isPhantom?'Phantom':'Browser Wallet';
+    detectedWallets.push({name,provider:p});
+  }
 }
-async function connectWallet(){
+
+// EIP-6963 event listener
+const eip6963Wallets=[];
+if(window.addEventListener){
+  window.addEventListener('eip6963:announceProvider',e=>{
+    if(e.detail&&e.detail.provider){
+      eip6963Wallets.push({name:e.detail.info?.name||'Wallet',icon:e.detail.info?.icon,provider:e.detail.provider,rdns:e.detail.info?.rdns});
+    }
+  });
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+}
+
+async function ensureChain(eth){
+  try{await eth.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x1237'}]})}
+  catch(e){if(e.code===4902||e.code===4001&&e.message?.includes('Unrecognized'))await eth.request({method:'wallet_addEthereumChain',params:[RH_CHAIN]});else throw e}
+}
+
+function openWalletModal(){
   const btn=document.getElementById('walletBtn');
-  if(walletAddress){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected');return}
-  if(!window.ethereum){showModal('🦊 <strong>MetaMask Required</strong><br><br>Install MetaMask from <a href="https://metamask.io" target="_blank" style="color:var(--green)">metamask.io</a> to connect your wallet and start launching tokens.');return}
+  // If already connected, disconnect
+  if(walletAddress){
+    walletAddress=null;signer=null;factory=null;
+    btn.innerHTML='Connect Wallet';btn.classList.remove('connected');
+    return;
+  }
+  detectWallets();
+  const list=document.getElementById('walletList');
+  const deepDiv=document.getElementById('walletDeepLinks');
+  const divider=document.getElementById('walletDivider');
+  list.innerHTML='';deepDiv.innerHTML='';
+
+  // Combine EIP-6963 + legacy detected
+  const allWallets=eip6963Wallets.length?eip6963Wallets:detectedWallets;
+
+  if(allWallets.length>0){
+    allWallets.forEach((w,i)=>{
+      const el=document.createElement('div');el.className='wallet-option';
+      const iconSrc=w.icon||(w.name.includes('MetaMask')?WALLET_ICONS.metamask:w.name.includes('Trust')?WALLET_ICONS.trust:w.name.includes('Coinbase')?WALLET_ICONS.coinbase:w.name.includes('Rabby')?WALLET_ICONS.rabby:null);
+      el.innerHTML=(iconSrc?'<img src="'+iconSrc+'" alt="">':'<div class="wo-icon">🔗</div>')+'<div class="wo-info"><div class="wo-name">'+w.name+'</div><div class="wo-desc">Detected in browser</div></div><span class="wo-badge">Connect</span>';
+      el.onclick=()=>doConnect(w.provider);
+      list.appendChild(el);
+    });
+  }
+
+  // Always show deep links on mobile OR when no wallet detected
+  const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobile||allWallets.length===0){
+    if(allWallets.length>0){divider.style.display='';} else {divider.style.display='none';}
+    deepDiv.style.display='';
+    DEEP_LINKS.forEach(dl=>{
+      const el=document.createElement('a');el.className='wallet-option';el.href=dl.url;el.target='_blank';el.rel='noopener';
+      el.innerHTML='<img src="'+dl.icon+'" alt=""><div class="wo-info"><div class="wo-name">'+dl.name+'</div><div class="wo-desc">'+dl.desc+'</div></div><span class="wo-badge">Open →</span>';
+      deepDiv.appendChild(el);
+    });
+    if(allWallets.length===0&&!isMobile){
+      // Desktop with no wallet — show install links
+      divider.style.display='';divider.textContent='Install a wallet to get started';
+      const installLinks=[
+        {name:'MetaMask',icon:WALLET_ICONS.metamask,url:'https://metamask.io/download/',desc:'Most popular — Chrome, Firefox, Edge'},
+        {name:'Rabby',icon:WALLET_ICONS.rabby,url:'https://rabby.io/',desc:'Multi-chain, great UX'},
+        {name:'Coinbase Wallet',icon:WALLET_ICONS.coinbase,url:'https://www.coinbase.com/wallet',desc:'By Coinbase'},
+      ];
+      deepDiv.innerHTML='';deepDiv.style.display='';
+      installLinks.forEach(il=>{
+        const el=document.createElement('a');el.className='wallet-option';el.href=il.url;el.target='_blank';el.rel='noopener';
+        el.innerHTML='<img src="'+il.icon+'" alt=""><div class="wo-info"><div class="wo-name">'+il.name+'</div><div class="wo-desc">'+il.desc+'</div></div><span class="wo-badge">Install →</span>';
+        deepDiv.appendChild(el);
+      });
+    }
+  }else{
+    divider.style.display='none';deepDiv.style.display='none';
+  }
+
+  document.getElementById('walletModal').classList.add('active');
+}
+
+function closeWalletModal(){document.getElementById('walletModal').classList.remove('active')}
+document.getElementById('walletModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeWalletModal()});
+
+async function doConnect(eth){
+  closeWalletModal();
+  const btn=document.getElementById('walletBtn');
+  btn.textContent='Connecting...';
   try{
-    await ensureChain();
-    provider=new ethers.BrowserProvider(window.ethereum);
+    await ensureChain(eth);
+    provider=new ethers.BrowserProvider(eth);
     signer=await provider.getSigner();
     walletAddress=await signer.getAddress();
     factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);
     btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);
     btn.classList.add('connected');
     loadTokens(true);
-  }catch(e){if(e.code!==4001)showModal('Connect failed: '+(e.shortMessage||e.message))}
+    // Listen for changes on this provider
+    eth.on('accountsChanged',async a=>{
+      if(!a.length){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected')}
+      else{provider=new ethers.BrowserProvider(eth);signer=await provider.getSigner();walletAddress=a[0];factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4)}
+    });
+    eth.on('chainChanged',()=>window.location.reload());
+  }catch(e){
+    btn.textContent='Connect Wallet';
+    if(e.code!==4001)showModal('Connect failed: '+(e.shortMessage||e.message));
+  }
 }
-if(window.ethereum){
-  window.ethereum.on('accountsChanged',async a=>{
-    const btn=document.getElementById('walletBtn');
-    if(!a.length){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected')}
-    else{provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();walletAddress=a[0];factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4)}
-  });
-  window.ethereum.on('chainChanged',()=>window.location.reload());
-}
+
+// Legacy alias
+function connectWallet(){openWalletModal()}
 
 // CREATE TOKEN
 async function handleLaunch(e){
