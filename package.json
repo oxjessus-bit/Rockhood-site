@@ -1,0 +1,20 @@
+{
+  "name": "rockhood-launchpad",
+  "version": "1.0.0",
+  "description": "The first fair launch platform on Robinhood Chain",
+  "scripts": {
+    "start": "npx serve . -l 3000",
+    "dev": "npx serve . -l 3000 --no-clipboard"
+  },
+  "keywords": [
+    "rockhood",
+    "robinhood-chain",
+    "launchpad",
+    "token",
+    "defi",
+    "bonding-curve"
+  ],
+  "author": "Rockhood",
+  "license": "UNLICENSED",
+  "private": true
+}
