@@ -416,43 +416,126 @@
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script>
-let walletAddress=null;
+const FACTORY_ADDR='0x0A13180bFcae1A09BFdC8EB844f3F7e97d6E75a9';
+const RH_CHAIN={chainId:'0x1237',chainName:'Robinhood Chain',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:['https://rpc.mainnet.chain.robinhood.com'],blockExplorerUrls:['https://robinhoodchain.blockscout.com']};
+const FABI=["function createToken(string,string,string,string) payable returns (uint256)","function buy(uint256) payable","function sell(uint256,uint256)","function totalTokens() view returns (uint256)","function tokens(uint256) view returns (address,string,string,string,string,address,uint256,uint256,bool,uint256)","function getPrice(uint256) view returns (uint256)","function getBuyEstimate(uint256,uint256) view returns (uint256)","function getSellEstimate(uint256,uint256) view returns (uint256)","function launchFee() view returns (uint256)","event TokenCreated(uint256 indexed id,address token,string name,string symbol,address creator)","event TokenBuy(uint256 indexed id,address buyer,uint256 ethIn,uint256 tokensOut)","event TokenSell(uint256 indexed id,address seller,uint256 tokensIn,uint256 ethOut)","event Graduated(uint256 indexed id,address token)"];
+let provider,signer,factory,walletAddress=null;
+
+async function ensureChain(){
+  try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x1237'}]})}
+  catch(e){if(e.code===4902)await window.ethereum.request({method:'wallet_addEthereumChain',params:[RH_CHAIN]});else throw e}
+}
 async function connectWallet(){
   const btn=document.getElementById('walletBtn');
-  if(walletAddress){walletAddress=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected');return}
-  if(typeof window.ethereum==='undefined'){showModal('MetaMask is not installed. Please install MetaMask to connect.');return}
+  if(walletAddress){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected');return}
+  if(!window.ethereum){showModal('Please install MetaMask!');return}
   try{
-    const p=new ethers.BrowserProvider(window.ethereum);
-    const a=await p.send('eth_requestAccounts',[]);
-    walletAddress=a[0];
+    await ensureChain();
+    provider=new ethers.BrowserProvider(window.ethereum);
+    signer=await provider.getSigner();
+    walletAddress=await signer.getAddress();
+    factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);
     btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);
     btn.classList.add('connected');
-  }catch(e){if(e.code!==4001)showModal('Failed to connect wallet.')}
+    loadTokens();
+  }catch(e){if(e.code!==4001)showModal('Connect failed: '+(e.shortMessage||e.message))}
 }
-if(typeof window.ethereum!=='undefined'){
-  window.ethereum.on('accountsChanged',a=>{
+if(window.ethereum){
+  window.ethereum.on('accountsChanged',async a=>{
     const btn=document.getElementById('walletBtn');
-    if(!a.length){walletAddress=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected')}
-    else{walletAddress=a[0];btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4)}
+    if(!a.length){walletAddress=null;signer=null;btn.innerHTML='Connect Wallet';btn.classList.remove('connected')}
+    else{provider=new ethers.BrowserProvider(window.ethereum);signer=await provider.getSigner();walletAddress=a[0];factory=new ethers.Contract(FACTORY_ADDR,FABI,signer);btn.innerHTML='<span class="dot"></span>'+walletAddress.slice(0,6)+'...'+walletAddress.slice(-4)}
   });
+  window.ethereum.on('chainChanged',()=>window.location.reload());
 }
+
+// CREATE TOKEN
+async function handleLaunch(e){
+  e.preventDefault();
+  if(!signer){showModal('Connect your wallet first!');return}
+  const name=document.getElementById('tokenName').value.trim();
+  const sym=document.getElementById('tokenTicker').value.trim().toUpperCase();
+  const desc=document.getElementById('tokenDesc').value.trim();
+  if(!name||!sym||!desc){showModal('Fill in all fields.');return}
+  const btn=document.querySelector('.btn-launch');
+  btn.disabled=true;btn.textContent='⏳ Creating...';
+  try{
+    const fee=await factory.launchFee();
+    const tx=await factory.createToken(name,sym,'',desc,{value:fee});
+    btn.textContent='⏳ Confirming...';
+    const rc=await tx.wait();
+    const log=rc.logs.find(l=>{try{return factory.interface.parseLog(l)?.name==='TokenCreated'}catch{return false}});
+    const p=factory.interface.parseLog(log);
+    showModal('🎉 <strong>'+name+'</strong> ($'+sym+') created!<br><br>Token: <a href="https://robinhoodchain.blockscout.com/address/'+p.args[1]+'" target="_blank" style="color:var(--green)">'+p.args[1].slice(0,16)+'...</a><br><br>People can now buy it on Rockhood!');
+    document.getElementById('launchForm').reset();
+    loadTokens();
+  }catch(e){showModal('Failed: '+(e.shortMessage||e.reason||e.message))}
+  btn.disabled=false;btn.textContent='🚀 Create Token';
+}
+
+// LOAD TOKENS
+async function loadTokens(){
+  const rp=new ethers.JsonRpcProvider('https://rpc.mainnet.chain.robinhood.com');
+  const rf=new ethers.Contract(FACTORY_ADDR,FABI,rp);
+  try{
+    const count=await rf.totalTokens();
+    if(Number(count)===0)return;
+    const c=document.querySelector('.hero-right');if(!c)return;
+    const h=c.querySelector('.trending-header');
+    c.innerHTML='';c.appendChild(h);
+    h.querySelector('span').textContent='Live Tokens ('+count+')';
+    const max=Math.min(Number(count),4);
+    for(let i=Number(count)-1;i>=Math.max(0,Number(count)-max);i--){
+      const t=await rf.tokens(i);
+      const[addr,name,sym,,desc,creator,raised,supply,grad]=t;
+      const price=await rf.getPrice(i);
+      const card=document.createElement('div');card.className='trending-card';
+      card.onclick=()=>openTrade(i,name,sym,addr,ethers.formatEther(raised),ethers.formatEther(price),grad);
+      card.innerHTML='<div class="trending-avatar">'+(grad?'🎓':name.charAt(0).toUpperCase())+'</div><div class="trending-info"><div class="trending-name"><strong>'+name+'</strong><span>$'+sym+'</span></div><div class="trending-stats"><span class="mcap">'+parseFloat(ethers.formatEther(raised)).toFixed(4)+' ETH</span><span class="change up">'+(grad?'Graduated':'Active')+'</span></div></div>';
+      c.appendChild(card);
+    }
+  }catch(e){console.error('Load:',e)}
+}
+
+// TRADE MODAL
+function openTrade(id,name,sym,addr,raised,price,grad){
+  const t=document.getElementById('modalText');
+  t.innerHTML='<div style="text-align:left"><h3 style="margin-bottom:8px">'+name+' ($'+sym+')</h3><p style="font-size:13px;color:var(--text-sub);margin-bottom:12px"><a href="https://robinhoodchain.blockscout.com/address/'+addr+'" target="_blank" style="color:var(--green)">'+addr.slice(0,20)+'...</a></p><div style="display:flex;gap:12px;margin-bottom:16px"><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Raised</div><div style="font-weight:600">'+parseFloat(raised).toFixed(4)+' ETH</div></div><div style="flex:1;background:var(--bg-hover);padding:12px;border-radius:8px"><div style="font-size:11px;color:var(--text-sub)">Price</div><div style="font-weight:600">'+parseFloat(price).toFixed(8)+' ETH</div></div></div>'+(grad?'<p style="color:#22c55e;font-weight:600">🎓 Graduated!</p>':'<div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Buy with ETH</label><div style="display:flex;gap:8px"><input type="number" id="buyAmt" placeholder="0.01" step="0.001" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doBuy('+id+')" style="padding:10px 20px;background:var(--green);color:#000;border:none;border-radius:8px;font-weight:600;cursor:pointer">Buy</button></div></div><div><label style="font-size:12px;color:var(--text-sub);display:block;margin-bottom:4px">Sell tokens</label><div style="display:flex;gap:8px"><input type="number" id="sellAmt" placeholder="1000" step="1" min="0" style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none"><button onclick="doSell('+id+')" style="padding:10px 20px;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:600;cursor:pointer">Sell</button></div></div>')+'</div>';
+  document.getElementById('modal').classList.add('active');
+}
+async function doBuy(id){
+  if(!signer){showModal('Connect wallet first!');return}
+  const v=document.getElementById('buyAmt')?.value;
+  if(!v||parseFloat(v)<=0){alert('Enter amount');return}
+  try{const tx=await factory.buy(id,{value:ethers.parseEther(v)});showModal('⏳ Buying...');await tx.wait();showModal('✅ Bought! Tokens in your wallet.');loadTokens()}
+  catch(e){showModal('Buy failed: '+(e.shortMessage||e.reason||e.message))}
+}
+async function doSell(id){
+  if(!signer){showModal('Connect wallet first!');return}
+  const v=document.getElementById('sellAmt')?.value;
+  if(!v||parseFloat(v)<=0){alert('Enter amount');return}
+  try{const tx=await factory.sell(id,ethers.parseEther(v));showModal('⏳ Selling...');await tx.wait();showModal('✅ Sold! ETH sent to your wallet.');loadTokens()}
+  catch(e){showModal('Sell failed: '+(e.shortMessage||e.reason||e.message))}
+}
+
+// MODAL
 function showModal(ctx){
   const m=document.getElementById('modal'),t=document.getElementById('modalText');
   if(ctx==='Docs')t.innerHTML='Documentation coming soon. Follow <strong>@Rockhood_</strong> on X!';
-  else if(ctx==='Telegram group')t.innerHTML='Telegram group launching soon. Follow <strong>@Rockhood_</strong> on X!';
-  else if(ctx==='Settings')t.innerHTML='Settings coming with mainnet launch. Follow <strong>@Rockhood_</strong> for updates!';
-  else t.innerHTML=ctx||'Mainnet launch: <strong>July 2026</strong>. Follow <strong>@Rockhood_</strong> on X!';
+  else if(ctx==='Telegram group')t.innerHTML='Telegram group launching soon!';
+  else if(ctx==='Settings')t.innerHTML='Settings coming soon!';
+  else t.innerHTML=ctx;
   m.classList.add('active');
 }
 function closeModal(){document.getElementById('modal').classList.remove('active')}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
-function handleLaunch(e){e.preventDefault();showModal('Coming Soon — Mainnet Launch July 2026. Follow <strong>@Rockhood_</strong> for updates!')}
 function handleUpload(e){const f=e.target.files[0];if(f){document.getElementById('uploadArea').querySelector('.u-icon').textContent='✅';document.getElementById('uploadArea').querySelector('.u-text').innerHTML='<strong>'+f.name+'</strong><br>Click to change'}}
 function scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})}
-function toggleMobileMenu(){/* TODO */}
+function toggleMobileMenu(){}
 const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}})},{threshold:0.1,rootMargin:'0px 0px -30px 0px'});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+loadTokens();
 </script>
 </body>
 </html>
