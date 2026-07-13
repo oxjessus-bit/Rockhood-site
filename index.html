@@ -492,36 +492,6 @@
 <!-- WalletConnect handles its own modal via @walletconnect/ethereum-provider -->
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
-<script type="module">
-import{EthereumProvider}from'https://esm.sh/@walletconnect/ethereum-provider@2.17.3';
-
-const WC_PROJECT_ID='4e0052e54e31fb821812a55f6db04bc4';
-const RH_CHAIN_ID=4663;
-
-// Init WalletConnect provider (lazy)
-let wcProvider=null;
-async function getWCProvider(){
-  if(wcProvider)return wcProvider;
-  wcProvider=await EthereumProvider.init({
-    projectId:WC_PROJECT_ID,
-    chains:[RH_CHAIN_ID],
-    optionalChains:[RH_CHAIN_ID],
-    rpcMap:{[RH_CHAIN_ID]:'https://rpc.mainnet.chain.robinhood.com'},
-    showQrModal:true,
-    metadata:{
-      name:'Rockhood',
-      description:'The First Launchpad on Robinhood Chain',
-      url:'https://rockhood.fun',
-      icons:['https://rockhood.fun/logo.jpg']
-    }
-  });
-  return wcProvider;
-}
-
-// Expose to global scope for non-module scripts
-window._getWCProvider=getWCProvider;
-window._wcConnectReady=true;
-</script>
 <script>
 const FACTORY_ADDR='0x0A13180bFcae1A09BFdC8EB844f3F7e97d6E75a9';
 const RPC_URL='https://rpc.mainnet.chain.robinhood.com';
@@ -560,6 +530,38 @@ async function ensureChain(eth){
   catch(e){if(e.code===4902||e.code===4001&&e.message?.includes('Unrecognized'))await eth.request({method:'wallet_addEthereumChain',params:[RH_CHAIN]});else if(e.code!==4902)throw e}
 }
 
+// --- WALLETCONNECT ---
+const WC_PROJECT_ID='4e0052e54e31fb821812a55f6db04bc4';
+let wcProvider=null;
+
+async function initWalletConnect(){
+  if(wcProvider)return wcProvider;
+  try{
+    const btn=document.getElementById('walletBtn');
+    btn.textContent='Loading...';
+    const mod=await import('https://esm.sh/@walletconnect/ethereum-provider@2.17.0?bundle');
+    const EthereumProvider=mod.EthereumProvider||mod.default;
+    wcProvider=await EthereumProvider.init({
+      projectId:WC_PROJECT_ID,
+      chains:[4663],
+      optionalChains:[4663],
+      rpcMap:{4663:'https://rpc.mainnet.chain.robinhood.com'},
+      showQrModal:true,
+      qrModalOptions:{themeMode:'dark'},
+      metadata:{
+        name:'Rockhood',
+        description:'The First Launchpad on Robinhood Chain',
+        url:'https://rockhood.fun',
+        icons:['https://rockhood.fun/logo.jpg']
+      }
+    });
+    return wcProvider;
+  }catch(e){
+    console.error('WC init error:',e);
+    throw e;
+  }
+}
+
 // --- WALLET CONNECTION ---
 async function connectWallet(){
   const btn=document.getElementById('walletBtn');
@@ -569,6 +571,8 @@ async function connectWallet(){
     walletAddress=null;signer=null;factory=null;activeEthProvider=null;
     btn.innerHTML='Connect Wallet';btn.classList.remove('connected');
     if(window._balInterval)clearInterval(window._balInterval);
+    // Disconnect WalletConnect session if active
+    if(wcProvider&&wcProvider.connected){try{await wcProvider.disconnect()}catch(e){}}
     return;
   }
 
@@ -578,16 +582,18 @@ async function connectWallet(){
     return;
   }
 
-  // No injected wallet → use WalletConnect (QR code / mobile deep link)
+  // No injected wallet → use WalletConnect
   btn.textContent='Connecting...';
   try{
-    const wc=await window._getWCProvider();
+    const wc=await initWalletConnect();
     await wc.connect();
     await doConnect(wc);
   }catch(e){
     btn.textContent='Connect Wallet';
-    if(e.message&&!e.message.includes('User rejected')&&!e.message.includes('closed')){
-      showModal('Connect failed: '+(e.message||e));
+    console.error('WC connect error:',e);
+    const msg=(e.message||'').toLowerCase();
+    if(!msg.includes('rejected')&&!msg.includes('closed')&&!msg.includes('dismiss')){
+      showModal('Connect failed: '+(e.shortMessage||e.message||'Unknown error. Check console for details.'));
     }
   }
 }
